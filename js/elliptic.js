@@ -332,6 +332,8 @@ function ecdsaSign(privateKey, message) {
 
         priv = privateKeyFromString(privateKey);
 
+        m = mod(Whirlpool(JSON.stringify(message)).substring(0,32), n256);
+
         while (true) {
                 var k;
                 while (true) {
@@ -345,7 +347,7 @@ function ecdsaSign(privateKey, message) {
                 }
 
                 var s = multMod(priv, r, n256);
-                s = add(s, message);
+                s = add(s, m);
                 kinv = inverseMod(k, n256);
                 s = multMod(s, kinv, n256);
                 if (!isZero(s)) {
@@ -364,6 +366,8 @@ function ecdsaVerify(publicKey, signature, message) {
         pub = publicKeyFromString(publicKey);
         sig = sigFromString(signature);
 
+        m = mod(Whirlpool(JSON.stringify(message)).substring(0,32), n256);
+
         var r = sig[0]
         var s = sig[1]
 
@@ -376,7 +380,7 @@ function ecdsaVerify(publicKey, signature, message) {
         }
 
         var w = inverseMod(s, n256);
-        var u1 = multMod(message, w, n256);
+        var u1 = multMod(m, w, n256);
         var u2 = multMod(r, w, n256);
 
         var point1 = scalarMultP256(p256Gx, p256Gy, u1);
@@ -392,16 +396,16 @@ function ecdsaVerify(publicKey, signature, message) {
         return equals(point4[0], r);
 }
 
-function ecDH(key, pub) {
-	prikey = privateKeyFromString(key);
+function ecDH(x, gY) {
+	x = privateKeyFromString(x);
 
-	if (typeof pub == "undefined") {
-		pubkey = scalarMultP256(p256Gx, p256Gy, prikey);
-		return publicKeyToString(pubkey);
+	if (typeof gY == "undefined") {
+		gX = scalarMultP256(p256Gx, p256Gy, x);
+		return publicKeyToString(gX);
 	}
 	else {
-    pub = publicKeyFromString(pub);
-		r = scalarMultP256(pub[0], pub[1], prikey);
-		return publicKeyToString(r);
+    gY = publicKeyFromString(gY);
+		gXY = scalarMultP256(gY[0], gY[1], x);
+		return publicKeyToString(gXY);
 	}
 }

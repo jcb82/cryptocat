@@ -67,19 +67,28 @@ Participant.prototype = {
     this.ephPublicKey = ecdsaGenPublicKey(this.ephPrivateKey);
   },
 
+  protocolError: function(id, errorMessage) {
+    console.log('Error in protocol step ' + id + ' for ' + this.nick + ': ' + errorMessage);
+  },
 
   sendProtocolMessage: function(id) {
     switch(id) {
       case 'randomX':
         return {'*': {'publicKey':this.publicKey, 'randomX': gen(16,1,0)}};
-
-      case 'akePub':
-        result = {};
-        for (var i in nicks){
-
+      case 'ake1':
+        var result = {};
+        this.akeX = {};
+        for (var i in this.nicks){
+          //don't send to yourself
+          if (this.nicks[i] == this.nick){
+            continue;
+          }
+          this.akeX[this.nicks[i]] = ecdsaGenPrivateKey();
+          var gX = ecDH(this.akeX[this.nicks[i]]);
+          result[this.nicks[i]] = {'gX': gX, 'sig': ecdsaSign(this.privateKey, gX)};
         }
 
-        return this.pubKey;
+        return result;
     }
 
   },
@@ -99,6 +108,21 @@ Participant.prototype = {
         this.sessionID = mpotr.deriveSessionID(this.nicks, this.randomXs);
         console.log("Generated sessionID: " + this.sessionID);
         return this.sessionID;
+      case 'ake1':
+        this.akeGXY = {};
+        for (var i in msgs){
+          if (!ecdsaVerify(this.publicKeys[i], msgs[i]['sig'], msgs[i]['gX'])){
+            //die?
+            console.log('Signature verification fail');
+            this.protocolError('ake1', 'signature from ' + i + ' failed');
+            return;
+          }
+          //console.log("Verifying signature from " + i);
+          //console.log(ecdsaVerify(this.publicKeys[i], msgs[i]['sig'], msgs[i]['gX']));
+          this.akeGXY = ecDH(this.akeX[i], msgs[i]['gX']);
+          
+        }
+        return 0;
     }
 
   }
@@ -139,17 +163,18 @@ var TestServer = {
 
 };
 
-r1 = gen(24, 0, 0);
-r2 = gen(24, 0, 0);
+r1 = ecdsaGenPrivateKey();
+r2 = ecdsaGenPrivateKey();
 
 p1 = ecDH(r1);
 p2 = ecDH(r2);
-console.log(p1);
-console.log(p2);
+//console.log(p1);
+//console.log(p2);
 p3 = ecDH(r1, p2);
 p4 = ecDH(r2, p1);
-console.log(p3);
-console.log(p4);
+//console.log(p3);
+//console.log(p4);
+//console.log(Whirlpool(p3));
 
 var Alice = new Participant();
 Alice.initialize('alice');
@@ -160,7 +185,7 @@ Charlie.initialize('charlie');
 var participants = [Alice, Bob, Charlie];
 
 
-var messages = ['randomX'];
+var messages = ['randomX', 'ake1'];
 for (var mid in messages) {
   for (var i in participants) {
     var id = messages[mid];

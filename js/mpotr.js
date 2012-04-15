@@ -1,17 +1,41 @@
-function recvMessage() {
-  this.message;
-  this.signature;
-  this.sender;
-  this.verified;
+var mpotr = (function(){
+  /** @scope mpotr **/
+  return {
+    /**
+     * returns a unique (with high probability) chatroom
+     * identifier.
+     * nicks: Array() containing the nicks of the users
+     * randomXs: Array() containing the users random data
+     */
+    deriveSessionID: function(nicks, randomXs){
+      preimage = JSON.stringify(randomXs.sort());
+      preimage += JSON.stringify(nicks.sort());
+      var res = Crypto.util.hexToBytes(Whirlpool(preimage));
+      // Take 16 Bytes
+      res = res.slice(0, 16);
+      res = Crypto.util.bytesToBase64(res);
+      return res;
+    },
+
+    authUser: function() {
+        return null;
+    }
+
+  }
+})();
+
+/* This object represent a message passed on the wire */
+function Message(data, getParticipant) {
+  parsed = JSON.parse(data);
+  this.message = parsed.msg;
+  this.signature = parsed.sig
+  this.sender = getParticipant(parsed.nick);
+  this.verified = false;
 };
 
-recvMessage.prototype = {
-  initialize: function(nick){
-    this.sender = getParticipant(nick);
-  },
-
+Message.prototype = {
   verifyMessage: function() {
-    this.verified = ecdsaVerify(sender.publicKey, this.signature, this.message);
+    this.verified = ecdsaVerify(this.sender.publicKey, this.signature, this.message);
   }
 };
 
@@ -34,15 +58,6 @@ Participant.prototype = {
     }
   },
 
-  deriveSessionID: function(nicks, randomXs){
-    preimage = JSON.stringify(randomXs.sort());
-    preimage += JSON.stringify(nicks.sort());
-    var res = Crypto.util.hexToBytes(Whirlpool(preimage));
-    // Take 16 Bytes
-    res = res.slice(0, 16);
-    res = Crypto.util.bytesToBase64(res);
-    return res;
-  },
 
   sendProtocolMessage: function(id) {
     switch(id) {
@@ -65,7 +80,7 @@ Participant.prototype = {
             this.nicks.push(x);
             this.randomXs.push(msgs[x]);
         }
-        this.sessionID = this.deriveSessionID(this.nicks, this.randomXs);
+        this.sessionID = mpotr.deriveSessionID(this.nicks, this.randomXs);
         console.log("Generated sessionID: " + this.sessionID);
         return this.sessionID;
     }

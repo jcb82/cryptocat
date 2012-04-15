@@ -2,6 +2,38 @@
 	<head>
 	<script type="text/javascript" src="jquery-1.7.1.min.js"></script>
 	<script type="text/javascript" src="server.js"></script>
+	<script type="text/javascript">
+		$(document).ready(function() {	
+			alert("registered as nick " + register("bob"));
+			
+			alert("sending data to everyone else and adding dummy to myself");
+			send('{"*": "message to everyone else"}');
+			send('{"bob": "message to myself from myself"}');
+
+			var data = recieve(0);			
+			printReply(data);
+
+			send('{"alice": "some data from bob", "dave": "some other data from bob"}');
+			send('{"bob": "message to myself from myself"}');
+
+			var data = recieve(0);
+			printReply(data);			
+		       
+			alert("number of participants: " + getCount());
+
+			// delete the SESSION and remove any data to me from the server
+		       	unregister();
+
+			// reset all data to be sent anywhere (testing only)
+			nuke();
+		});
+		
+		function printReply(data) {
+			$.each(data, function(nick, data) {
+				alert("REPLY: (nick:" + nick + ", data: " + data + ")");
+			});
+		}
+	</script>
 	</head>
 	<body>
 	</body>

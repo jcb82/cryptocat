@@ -131,6 +131,8 @@ function scalarMult(i, base) {
 
 // P256
 
+
+
 // var priv = randBigInt(256)
 // var pub = scalarMultP256(p256Gx, p256Gy, priv)
 // var message = str2bigInt("2349623424239482634", 10)
@@ -146,6 +148,35 @@ var b256 = str2bigInt("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e2
 // p256Gx and p256Gy is the generator of the group
 var p256Gx = str2bigInt("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296", 16)
 var p256Gy = str2bigInt("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5", 16)
+
+
+function privateKeyToString(p){
+  return bigInt2str(p, 64);
+}
+
+function privateKeyFromString(s){
+  return str2bigInt(s, 64)
+}
+
+function publicKeyToString(p){
+  return JSON.stringify([bigInt2str(p[0], 64), bigInt2str(p[0], 64)]);
+}
+
+function publicKeyFromString(s){
+  p = JSON.parse(s);
+  p[0] = str2bigInt(p[0], 64);
+  p[1] = str2bigInt(p[1], 64);
+  return p;
+}
+
+function ecdsaGenPrivateKey(){
+  return privateKeyToString(randBigInt(256));
+}
+
+function ecdsaGenPublicKey(privateKey){
+  return publicKeyToString(scalarMultP256(p256Gx, p256Gy, privateKeyFromString(privateKey)));
+}
+
 
 // isOnCurve returns true if the given point is on the curve.
 function isOnCurve(x, y) {
@@ -284,9 +315,11 @@ function scalarMultP256(bx, by, in_k) {
 // careful because the NSA and SECG documents differ on how the conversion to
 // an interger occurs. SECG says that you should truncate to the big-length of
 // the curve first and that's what OpenSSL does.
-function ecdsaSign(priv, message) {
+function ecdsaSign(privateKey, message) {
         var r
         var s
+
+        //priv = 
 
         while (true) {
                 var k

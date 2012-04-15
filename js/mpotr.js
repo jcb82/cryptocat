@@ -17,6 +17,8 @@ var mpotr = (function(){
       return res;
     },
 
+
+
     authUser: function() {
         return null;
     }
@@ -53,7 +55,7 @@ Participant.prototype = {
     this.nick = nick
 
     //generate a long-term public key if one doesn't exist
-    if (!static_private_key) {      
+    if (!static_private_key) {
       this.privateKey = ecdsaGenPrivateKey();
     }
     this.publicKey = ecdsaGenPublicKey(this.privateKey);
@@ -72,7 +74,7 @@ Participant.prototype = {
         return {'*': {'publicKey':this.publicKey, 'randomX': gen(16,1,0)}};
 
       case 'akePub':
-        result = {};        
+        result = {};
         for (var i in nicks){
 
         }
@@ -122,7 +124,7 @@ var TestServer = {
       //console.log(i);
       //console.log(msgs[i]);
       //console.log(JSON.stringify(this.state[id][i]));
-      
+
     }
   },
 
@@ -177,7 +179,7 @@ for (var mid in messages) {
     var current_messages = TestServer.getMessages(id, participants[i].nick);
 
     console.log("Principal "+ participants[i].nick +" received: " + JSON.stringify(current_messages));
-    
+
     var id = messages[mid];
     var participant = participants[i];
     res = participant.processProtocolMessages(id, current_messages);

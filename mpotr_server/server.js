@@ -27,7 +27,7 @@ function send(payload) {
 * have arrived.
 * Returned data: data.nick = payload
 */
-function recieve(count) {
+function recieveNr(count) {
 	buffer = null;
 
 	do {
@@ -44,6 +44,13 @@ function recieve(count) {
 	} while(buffer == null);
 
 	return buffer;
+}
+
+/**
+* Helper, see above. 
+*/
+function recieve() {
+	return recieveNr(0);
 }
 
 /**

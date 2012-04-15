@@ -10,13 +10,13 @@
 			send('{"*": "message to everyone else"}');
 			send('{"bob": "message to myself from myself"}');
 
-			var data = recieve(0);			
+			var data = recieve();			
 			printReply(data);
 
 			send('{"alice": "some data from bob", "dave": "some other data from bob"}');
 			send('{"bob": "message to myself from myself"}');
 
-			var data = recieve(0);
+			var data = recieve();
 			printReply(data);			
 		       
 			alert("number of participants: " + getCount());

@@ -17,10 +17,24 @@ var mpotr = (function(){
       return res;
     },
 
+    hash: function(s, n) {
+      return Crypto.util.bytesToBase64(Crypto.util.hexToBytes(Whirlpool(s).slice(0, n / 4)));
+    },
 
+    encrypt: function(m, k) {
+      return Crypto.AES.encrypt(m, Crypto.util.base64ToBytes(k));
+    },
 
-    authUser: function() {
-        return null;
+    decrypt: function(m, k) {
+      return Crypto.AES.decrypt(m, Crypto.util.base64ToBytes(k));
+    },
+
+    mac: function(m, k) {
+      return Crypto.HMAC(Whirlpool, m, Crypto.util.base64ToBytes(k));
+    },
+
+    verify_mac: function(mac, m, k) {
+      return this.mac(m, k) === mac;
     }
 
   }
@@ -75,7 +89,7 @@ Participant.prototype = {
     switch(id) {
       case 'randomX':
         return {'*': {'publicKey':this.publicKey, 'randomX': gen(16,1,0)}};
-      case 'ake1':
+      case 'ake':
         var result = {};
         this.akeX = {};
         for (var i in this.nicks){
@@ -89,6 +103,60 @@ Participant.prototype = {
         }
 
         return result;
+
+      case 'authUser1':
+        var result = {};
+
+        this.authUserEncKey = {};
+        this.authUserMacKey = {};
+
+        for (var i in this.nicks){
+          //don't send to yourself
+          if (this.nicks[i] == this.nick){
+            continue;
+          }
+          this.authUserEncKey[this.nicks[i]] = mpotr.hash(this.akeGXY[this.nicks[i]] + '_encrypt', 128);
+          this.authUserMacKey[this.nicks[i]] = mpotr.hash(this.akeGXY[this.nicks[i]] + '_mac', 128);
+          console.log(JSON.stringify(this.authUserEncKey));
+
+          var message = JSON.stringify([this.ephPublicKey, this.sessionID, this.nick, this.nicks[i]]);
+          var ciphertext = mpotr.encrypt(message, this.authUserEncKey[this.nicks[i]]);
+          var mac = mpotr.mac(ciphertext, this.authUserMacKey[this.nicks[i]]);
+          result[this.nicks[i]] = {
+            'ciphertext': ciphertext,
+            'mac': mac,
+          };
+
+        }
+
+        return result;
+      case 'authUser2':
+        var result = {};
+
+        for (var i in this.nicks){
+          //don't send to yourself
+          if (this.nicks[i] == this.nick){
+            continue;
+          }
+
+          var message = ecdsaSign(this.ephPrivateKey, JSON.stringify([this.ephPublicKeys[this.nicks[i]], this.sessionID, this.nick, this.nicks[i]]));
+          console.log('bang');
+          console.log(this.authUserEncKey[this.nicks[i]]);
+          console.log(JSON.stringify(this.authUserEncKey));
+          console.log(this.nicks[i]);
+          var ciphertext = mpotr.encrypt(message, this.authUserEncKey[this.nicks[i]]);
+
+          var mac = mpotr.mac(ciphertext, this.authUserMacKey[this.nicks[i]]);
+          result[this.nicks[i]] = {
+            'ciphertext': ciphertext,
+            'mac': mac,
+          };
+
+        }
+
+        return result;
+
+
     }
 
   },
@@ -108,19 +176,68 @@ Participant.prototype = {
         this.sessionID = mpotr.deriveSessionID(this.nicks, this.randomXs);
         console.log("Generated sessionID: " + this.sessionID);
         return this.sessionID;
-      case 'ake1':
+      case 'ake':
         this.akeGXY = {};
+
         for (var i in msgs){
           if (!ecdsaVerify(this.publicKeys[i], msgs[i]['sig'], msgs[i]['gX'])){
             //die?
-            console.log('Signature verification fail');
-            this.protocolError('ake1', 'signature from ' + i + ' failed');
+            this.protocolError('ake', 'signature from ' + i + ' failed');
             return;
           }
           //console.log("Verifying signature from " + i);
           //console.log(ecdsaVerify(this.publicKeys[i], msgs[i]['sig'], msgs[i]['gX']));
           this.akeGXY = ecDH(this.akeX[i], msgs[i]['gX']);
           
+        }
+        return 0;
+      case 'authUser1':
+
+        this.ephPublicKeys = {};
+
+        for (var i in msgs){
+
+          if (!mpotr.verify_mac(msgs[i].mac, msgs[i].ciphertext, this.authUserMacKey[i])){
+            this.protocolError('authUser1', 'mac from ' + i + ' failed');
+            return;
+          }
+
+          var plaintext = mpotr.decrypt(msgs[i].ciphertext, this.authUserEncKey[i]);
+          plaintext = JSON.parse(plaintext);
+          console.log(plaintext);
+          this.ephPublicKeys[i] = plaintext[0];
+          
+          if (plaintext[1] != this.sessionID){
+            this.protocolError('authUser1', 'sessionID from ' + i + ' incorrect');
+            return;
+          }
+          if (plaintext[2] != i || plaintext[3] != this.nick){
+            this.protocolError('authUser1', 'participant IDs from ' + i + ' incorrect');
+            return;
+          }
+    
+        }
+        return 0;
+      case 'authUser2':
+
+        for (var i in msgs){
+
+          if (!mpotr.verify_mac(msgs[i].mac, msgs[i].ciphertext, this.authUserMacKey[i])){
+            this.protocolError('authUser2', 'mac from ' + i + ' failed');
+            return;
+          }
+
+
+          var signature = mpotr.decrypt(msgs[i].ciphertext, this.authUserEncKey[i]);     
+          var signedMessage = JSON.stringify([this.ephPublicKey, this.sessionID, i, this.nick]);
+          //console.log('crypto at');          
+          //console.log(signature);
+          //console.log(signedMessage);
+          if (!ecdsaVerify(this.ephPublicKeys[i], signature, signedMessage)){
+            this.protocolError('authUser2', 'signature from ' + i + ' failed');
+            return;
+          }
+    
         }
         return 0;
     }
@@ -185,7 +302,7 @@ Charlie.initialize('charlie');
 var participants = [Alice, Bob, Charlie];
 
 
-var messages = ['randomX', 'ake1'];
+var messages = ['randomX', 'ake', 'authUser1', 'authUser2'];
 for (var mid in messages) {
   for (var i in participants) {
     var id = messages[mid];

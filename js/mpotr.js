@@ -49,22 +49,27 @@ function Participant() {
 };
 
 Participant.prototype = {
-  initialize: function(nick, public_key) {
+  initialize: function(nick, static_private_key) {
     this.nick = nick
 
-    if (public_key) {
-      this.public_key = public_key;
-    } else {
-      this.privateKey = gen(24, 0, 0); //modified to make Fortuna error message go away, need to re-sign
-      this.publicKey = dhgen(this.privateKey, "gen");
+    //generate a long-term public key if one doesn't exist
+    if (!static_private_key) {      
+      this.privateKey = ecdsaGenPrivateKey();
     }
+    this.publicKey = ecdsaGenPublicKey(this.privateKey);
+
+    console.log(this.privateKey);
+    console.log(this.publicKey);
+
+    this.ephPrivateKey = ecdsaGenPrivateKey();
+    this.ephPublicKey = ecdsaGenPublicKey(this.ephPrivateKey);
   },
 
 
   sendProtocolMessage: function(id) {
     switch(id) {
       case 'randomX':
-        return {'*': gen(16,1,0)};
+        return {'*': {'publicKey':this.publicKey, 'randomX': gen(16,1,0)}};
 
       case 'akePub':
         result = {};        
@@ -83,9 +88,11 @@ Participant.prototype = {
         this.nicks = [];
         this.msgs = [];
         this.randomXs = [];
+        this.publicKeys = {};
         for (var x in msgs) {
             this.nicks.push(x);
-            this.randomXs.push(msgs[x]);
+            this.randomXs.push(msgs[x]['randomX']);
+            this.publicKeys[x]= msgs[x]['publicKey'];
         }
         this.sessionID = mpotr.deriveSessionID(this.nicks, this.randomXs);
         console.log("Generated sessionID: " + this.sessionID);

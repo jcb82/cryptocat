@@ -26,6 +26,8 @@ function Participant() {
 
 Participant.prototype = {
   initialize: function(nick, public_key) {
+    this.nick = nick
+
     if (public_key) {
       this.public_key = public_key;
     } else {
@@ -47,7 +49,7 @@ Participant.prototype = {
   sendProtocolMessage: function(id) {
     switch(id) {
       case 'randomX':
-        return gen(16,1,0);
+        return {'*': gen(16,1,0)};
 
       case 'akePub':
         result = {};        
@@ -84,15 +86,31 @@ var TestServer = {
   state: {},
   nicks: [],
 
-  send: function(id, msg, nick) {
+  send: function(id, msgs, nick) {
     if (!this.state[id]) {
-      this.state[id] = [];
+      this.state[id] = {};
     }
-    this.state[id].push([nick, msg]);
+    for (var i in msgs) {
+      if (!this.state[id][i]) {
+        this.state[id][i] = {};
+      }
+      this.state[id][i][nick] = msgs[i];
+      //console.log(nick);
+      //console.log(id);
+      //console.log(i);
+      //console.log(msgs[i]);
+      //console.log(JSON.stringify(this.state[id][i]));
+      
+    }
   },
 
-  getMessages: function(id) {
-    return this.state[id];
+  getMessages: function(id, nick) {
+    //return broadcast message if it exists
+    if (this.state[id]['*']) {
+      return this.state[id]['*'];
+    }
+    return this.state[id][nick];
+
   }
 
 };
@@ -119,25 +137,28 @@ var participants = [Alice, Bob, Charlie];
 
 
 var messages = ['randomX'];
-for (mid in messages) {
-  for (i in participants) {
+for (var mid in messages) {
+  for (var i in participants) {
     var id = messages[mid];
     var participant = participants[i];
     res = participant.sendProtocolMessage(id);
-    TestServer.send(id, res, participant);
+    TestServer.send(id, res, participants[i].nick);
+    console.log("Principal "+ participants[i].nick +" sent message " + id + ": " + JSON.stringify(res));
   }
 
-  var current_messages = TestServer.getMessages(id);
-  console.log("-----");
-  console.log("Current "+ id +" messages");
-  console.log("-----");
-  console.log(current_messages);
 
-  for (i in participants) {
+  console.log("-----");
+  console.log("Processing "+ id +" messages");
+  console.log("-----");
+
+  for (var i in participants) {
+    var current_messages = TestServer.getMessages(id, participants[i].nick);
+
+    console.log("Principal "+ participants[i].nick +" received: " + JSON.stringify(current_messages));
+    
     var id = messages[mid];
     var participant = participants[i];
-    res = participant.processProtocolMessages(id);
-    console.log(res);
+    res = participant.processProtocolMessages(id, current_messages);
   }
 
 }

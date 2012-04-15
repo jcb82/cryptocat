@@ -158,8 +158,20 @@ function privateKeyFromString(s){
   return str2bigInt(s, 64);
 }
 
+
+function sigToString(p){
+  return JSON.stringify([bigInt2str(p[0], 64), bigInt2str(p[1], 64)]);
+}
+
+function sigFromString(s){
+  p = JSON.parse(s);
+  p[0] = str2bigInt(p[0], 64);
+  p[1] = str2bigInt(p[1], 64);
+  return p;
+}
+
 function publicKeyToString(p){
-  return JSON.stringify([bigInt2str(p[0], 64), bigInt2str(p[0], 64)]);
+  return JSON.stringify([bigInt2str(p[0], 64), bigInt2str(p[1], 64)]);
 }
 
 function publicKeyFromString(s){
@@ -176,7 +188,6 @@ function ecdsaGenPrivateKey(){
 function ecdsaGenPublicKey(privateKey){
   return publicKeyToString(scalarMultP256(p256Gx, p256Gy, privateKeyFromString(privateKey)));
 }
-
 
 // isOnCurve returns true if the given point is on the curve.
 function isOnCurve(x, y) {
@@ -319,7 +330,7 @@ function ecdsaSign(privateKey, message) {
         var r;
         var s;
 
-        //priv =
+        priv = privateKeyFromString(privateKey);
 
         while (true) {
                 var k;
@@ -342,15 +353,19 @@ function ecdsaSign(privateKey, message) {
                 }
         }
 
-        return [r,s];
+        return sigToString([r,s]);
 }
 
 // ecdsaVerify returns true iff signature is a valid ECDSA signature for
 // message. See the comment above ecdsaSign about converting a message into the
 // bigint |message|.
-function ecdsaVerify(pub, signature, message) {
-        var r = signature[0];
-        var s = signature[1];
+function ecdsaVerify(publicKey, signature, message) {
+
+        pub = publicKeyFromString(publicKey);
+        sig = sigFromString(signature);
+
+        var r = sig[0]
+        var s = sig[1]
 
         if (isZero(r) || isZero(s)) {
                 return false;
@@ -378,14 +393,15 @@ function ecdsaVerify(pub, signature, message) {
 }
 
 function ecDH(key, pub) {
-    if (typeof pub == "undefined") {
-		prikey = str2bigInt(key, 10);
+	prikey = privateKeyFromString(key);
+
+	if (typeof pub == "undefined") {
 		pubkey = scalarMultP256(p256Gx, p256Gy, prikey);
-		return pubkey;
+		return publicKeyToString(pubkey);
 	}
 	else {
-        prikey = str2bigInt(key, 10);
+    pub = publicKeyFromString(pub);
 		r = scalarMultP256(pub[0], pub[1], prikey);
-		return r;
+		return publicKeyToString(r);
 	}
 }

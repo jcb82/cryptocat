@@ -60,8 +60,8 @@ Participant.prototype = {
     }
     this.publicKey = ecdsaGenPublicKey(this.privateKey);
 
-    console.log(this.privateKey);
-    console.log(this.publicKey);
+    //console.log(this.privateKey);
+    //console.log(this.publicKey);
 
     this.ephPrivateKey = ecdsaGenPrivateKey();
     this.ephPublicKey = ecdsaGenPublicKey(this.ephPrivateKey);
@@ -142,8 +142,8 @@ var TestServer = {
 r1 = gen(24, 0, 0);
 r2 = gen(24, 0, 0);
 
-p1 = ecDH(r1, 'gen');
-p2 = ecDH(r2, 'gen');
+p1 = ecDH(r1);
+p2 = ecDH(r2);
 console.log(p1);
 console.log(p2);
 p3 = ecDH(r1, p2);

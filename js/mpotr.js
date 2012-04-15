@@ -50,6 +50,11 @@ Participant.prototype = {
         return gen(16,1,0);
 
       case 'akePub':
+        result = {};        
+        for (var i in nicks){
+
+        }
+
         return this.pubKey;
     }
 
@@ -91,6 +96,18 @@ var TestServer = {
   }
 
 };
+
+r1 = gen(24, 0, 0);
+r2 = gen(24, 0, 0);
+
+p1 = ecDH(r1, 'gen');
+p2 = ecDH(r2, 'gen');
+console.log(p1);
+console.log(p2);
+p3 = ecDH(r1, p2);
+p4 = ecDH(r2, p1);
+console.log(p3);
+console.log(p4);
 
 var Alice = new Participant();
 Alice.initialize('alice');

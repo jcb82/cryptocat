@@ -343,3 +343,16 @@ function ecdsaVerify(pub, signature, message) {
         mod(point3, n256)
         return equals(point4[0], r)
 }
+
+function ecDH(key, pub) {
+	if (pub === 'gen') {
+		prikey = str2bigInt(key, 10);
+		pubkey = scalarMultP256(p256Gx, p256Gy, prikey);
+		return pubkey;
+	}
+	else {
+        prikey = str2bigInt(key, 10);
+		r = scalarMultP256(pub[0], pub[1], prikey);
+		return r;
+	}
+}
